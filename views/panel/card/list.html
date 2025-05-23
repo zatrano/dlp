@@ -1,0 +1,150 @@
+<!--begin::Container-->
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      <div class="card shadow-sm mb-4">
+        <div class="card-header">
+          <div class="d-flex justify-content-between align-items-center">
+            <h3 class="card-title mb-0"><strong>{{.Title}}</strong></h3>
+            <div class="float-end">
+              <a href="/panel/card/create" class="btn btn-sm btn-success">
+                <i class="bi bi-plus-lg"></i> Yeni Kart
+              </a>
+            </div>
+          </div>
+        </div>
+        <!-- /.card-header -->
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-striped table-hover">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Kart Adı</th>
+                  <th>Email</th>
+                  <th>Telefon</th>
+                  <th>Durum</th>
+                  <th class="text-center" style="width: 1%; white-space: nowrap;">İşlemler</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{if .Cards}}
+                  {{range .Cards}}
+                  <tr>
+                    <td>{{.ID}}</td>
+                    <td>{{.Name}}</td>
+                    <td>{{.Email}}</td>
+                    <td>{{.Telephone}}</td>
+                    <td>
+                      {{if .IsActive}}
+                        <span class="badge text-bg-success">Aktif</span>
+                      {{else}}
+                        <span class="badge text-bg-secondary">Pasif</span>
+                      {{end}}
+                    </td>
+                    <td class="text-end" style="white-space: nowrap;">
+                      <a href="/panel/card/social-media?card_id={{.ID}}" class="btn btn-sm btn-info me-1" title="Sosyal Medya">
+                        <i class="bi bi-share"></i>
+                      </a>
+                      <a href="/panel/card/update/{{.ID}}" class="btn btn-sm btn-warning me-1" title="Düzenle">
+                        <i class="bi bi-pencil-square"></i>
+                      </a>
+                      <form id="deleteForm-{{.ID}}" action="/panel/card/delete/{{.ID}}" method="POST" class="d-inline">
+                        <input type="hidden" name="_method" value="DELETE">
+                        {{if $.CsrfToken}}
+                          <input type="hidden" name="csrf_token" value="{{$.CsrfToken}}">
+                        {{end}}
+                        <button type="button"
+                                onclick="confirmDelete('{{.ID}}')"
+                                class="btn btn-sm btn-danger" title="Sil">
+                          <i class="bi bi-trash3"></i>
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                  {{end}}
+                {{else}}
+                  <tr>
+                    <td colspan="6" class="text-center py-4">
+                      <div class="text-muted">Henüz kartınız bulunmuyor.</div>
+                      <a href="/panel/card/create" class="btn btn-sm btn-success mt-2">
+                        <i class="bi bi-plus-lg"></i> Yeni Kart Oluştur
+                      </a>
+                    </td>
+                  </tr>
+                {{end}}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- /.card -->
+    </div>
+    <!-- /.col -->
+  </div>
+  <!-- /.row -->
+</div>
+<!--end::Container-->
+
+<script>
+  function confirmDelete(id) {
+    const formElement = document.getElementById(`deleteForm-${id}`);
+    const csrfTokenInput = formElement ? formElement.querySelector('input[name="csrf_token"]') : null;
+    const csrfToken = csrfTokenInput ? csrfTokenInput.value : null;
+  
+    Swal.fire({
+      title: 'Emin misiniz?',
+      text: "Bu kartı silmek istediğinize emin misiniz? Bu işlem geri alınamaz!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Evet, sil!',
+      cancelButtonText: 'İptal',
+      customClass: {
+          confirmButton: 'btn btn-danger me-2',
+          cancelButton: 'btn btn-secondary'
+      },
+      buttonsStyling: false
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const url = `/panel/card/delete/${id}`;
+        const headers = {
+          'Accept': 'application/json',
+        };
+  
+        if (csrfToken) {
+          headers['X-CSRF-Token'] = csrfToken;
+        }
+  
+        fetch(url, {
+          method: 'DELETE',
+          headers: headers
+        })
+        .then(response => {
+          if (!response.ok) {
+            return response.text().then(text => { throw new Error(text || `HTTP error! status: ${response.status}`) });
+          }
+           return response.json();
+        })
+        .then(data => {
+          Swal.fire(
+            'Silindi!',
+            'Kart başarıyla silindi.',
+            'success'
+          ).then(() => {
+            window.location.reload();
+          });
+        })
+        .catch((error) => {
+          console.error('Error:', error);
+          Swal.fire(
+            'Hata!',
+            `Kart silinirken bir hata oluştu: ${error.message}`,
+            'error'
+          );
+        });
+      }
+    });
+  }
+</script>

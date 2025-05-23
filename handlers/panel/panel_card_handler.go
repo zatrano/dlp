@@ -3,13 +3,18 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
+	"davet.link/configs/logconfig"
+	"davet.link/configs/sessionconfig"
 	"davet.link/models"
 	"davet.link/pkg/flashmessages"
+	"davet.link/pkg/queryparams"
 	"davet.link/pkg/renderer"
 	"davet.link/services"
 
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/zap"
 )
 
 type PanelCardHandler struct {
@@ -38,21 +43,48 @@ func (h *PanelCardHandler) ShowCreatePanelCard(c *fiber.Ctx) error {
 }
 
 func (h *PanelCardHandler) CreatePanelCard(c *fiber.Ctx) error {
-	var req models.Card
+	var req struct {
+		Name      string `form:"name"`
+		Title     string `form:"title"`
+		Photo     string `form:"photo"`
+		Telephone string `form:"telephone"`
+		Email     string `form:"email"`
+		Location  string `form:"location"`
+		Website   string `form:"website"`
+	}
 	if err := c.BodyParser(&req); err != nil {
-		return renderer.Render(c, "panel/cards/create", "layouts/panel", fiber.Map{
-			"Title":                     "Yeni Kart Ekle",
-			flashmessages.FlashErrorKey: "Form verileri okunamadı.",
-		}, http.StatusBadRequest)
+		logconfig.Log.Error("Kart formu parse edilemedi", zap.Error(err))
+		return renderPanelCardFormError("Yeni Kart Oluştur", req, "Form bilgileri alınamadı.", c)
 	}
-	if err := h.cardService.CreateCard(c.UserContext(), &req); err != nil {
-		return renderer.Render(c, "panel/cards/create", "layouts/panel", fiber.Map{
-			"Title":                     "Yeni Kart Ekle",
-			flashmessages.FlashErrorKey: "Kart kaydedilemedi.",
-		}, http.StatusInternalServerError)
+
+	if req.Name == "" {
+		return renderPanelCardFormError("Yeni Kart Oluştur", req, "Ad alanı zorunludur.", c)
 	}
-	_ = flashmessages.SetFlashMessage(c, flashmessages.FlashSuccessKey, "Kart başarıyla eklendi.")
-	return c.Redirect("/panel/cards", http.StatusFound)
+
+	userID, err := sessionconfig.GetUserIDFromSession(c)
+	if err != nil {
+		return c.Redirect("/auth/login", fiber.StatusSeeOther)
+	}
+
+	card := &models.Card{
+		Name:      req.Name,
+		Title:     req.Title,
+		Photo:     req.Photo,
+		Telephone: req.Telephone,
+		Email:     req.Email,
+		Location:  req.Location,
+		Website:   req.Website,
+		IsActive:  true,
+		UserID:    userID,
+	}
+
+	if err := h.cardService.CreateCard(c.UserContext(), card); err != nil {
+		logconfig.Log.Error("Kart oluşturulamadı", zap.Error(err))
+		return renderPanelCardFormError("Yeni Kart Oluştur", req, "Kart oluşturulamadı: "+err.Error(), c)
+	}
+
+	_ = flashmessages.SetFlashMessage(c, flashmessages.FlashSuccessKey, "Kart başarıyla oluşturuldu.")
+	return c.Redirect("/panel/card", fiber.StatusFound)
 }
 
 func (h *PanelCardHandler) ShowUpdatePanelCard(c *fiber.Ctx) error {
@@ -69,22 +101,62 @@ func (h *PanelCardHandler) ShowUpdatePanelCard(c *fiber.Ctx) error {
 }
 
 func (h *PanelCardHandler) UpdatePanelCard(c *fiber.Ctx) error {
-	id, _ := strconv.Atoi(c.Params("id"))
-	var req models.Card
+	var req struct {
+		Name      string `form:"name"`
+		Title     string `form:"title"`
+		Photo     string `form:"photo"`
+		Telephone string `form:"telephone"`
+		Email     string `form:"email"`
+		Location  string `form:"location"`
+		Website   string `form:"website"`
+	}
 	if err := c.BodyParser(&req); err != nil {
-		return renderer.Render(c, "panel/cards/update", "layouts/panel", fiber.Map{
-			"Title":                     "Kart Düzenle",
-			flashmessages.FlashErrorKey: "Form verileri okunamadı.",
+		logconfig.Log.Error("Kart formu parse edilemedi", zap.Error(err))
+		return renderPanelCardFormError("Kartımı Düzenle", req, "Form bilgileri alınamadı.", c)
+	}
+
+	userID, err := sessionconfig.GetUserIDFromSession(c)
+	if err != nil {
+		return c.Redirect("/auth/login", fiber.StatusSeeOther)
+	}
+
+	card, err := h.cardService.GetCardByUserID(userID)
+	if err != nil {
+		_ = flashmessages.SetFlashMessage(c, flashmessages.FlashErrorKey, "Kart bulunamadı.")
+		return c.Redirect("/panel/card", fiber.StatusSeeOther)
+	}
+
+	if req.Name == "" {
+		return renderer.Render(c, "panel/card/update", "layouts/panel", fiber.Map{
+			"Title":                    "Kartımı Düzenle",
+			renderer.FlashErrorKeyView: "Ad alanı zorunludur.",
+			renderer.FormDataKey:       req,
+			"Card":                     card,
 		}, http.StatusBadRequest)
 	}
-	if err := h.cardService.UpdateCard(c.UserContext(), uint(id), &req); err != nil {
-		return renderer.Render(c, "panel/cards/update", "layouts/panel", fiber.Map{
-			"Title":                     "Kart Düzenle",
-			flashmessages.FlashErrorKey: "Kart güncellenemedi.",
+
+	cardData := &models.Card{
+		Name:      req.Name,
+		Title:     req.Title,
+		Photo:     req.Photo,
+		Telephone: req.Telephone,
+		Email:     req.Email,
+		Location:  req.Location,
+		Website:   req.Website,
+	}
+
+	if err := h.cardService.UpdateCard(c.UserContext(), card.ID, cardData); err != nil {
+		logconfig.Log.Error("Kart güncellenemedi", zap.Error(err))
+		return renderer.Render(c, "panel/card/update", "layouts/panel", fiber.Map{
+			"Title":                    "Kartımı Düzenle",
+			renderer.FlashErrorKeyView: "Güncelleme hatası: " + err.Error(),
+			renderer.FormDataKey:       req,
+			"Card":                     card,
 		}, http.StatusInternalServerError)
 	}
+
 	_ = flashmessages.SetFlashMessage(c, flashmessages.FlashSuccessKey, "Kart başarıyla güncellendi.")
-	return c.Redirect("/panel/cards", http.StatusFound)
+	return c.Redirect("/panel/card", fiber.StatusFound)
 }
 
 func (h *PanelCardHandler) DeletePanelCard(c *fiber.Ctx) error {
@@ -95,4 +167,33 @@ func (h *PanelCardHandler) DeletePanelCard(c *fiber.Ctx) error {
 	}
 	_ = flashmessages.SetFlashMessage(c, flashmessages.FlashSuccessKey, "Kart başarıyla silindi.")
 	return c.Redirect("/panel/cards", http.StatusFound)
+}
+
+func (h *PanelCardHandler) ShowCard(c *fiber.Ctx) error {
+	userID, err := sessionconfig.GetUserIDFromSession(c)
+	if err != nil {
+		return c.Redirect("/auth/login", fiber.StatusSeeOther)
+	}
+
+	card, err := h.cardService.GetCardByUserID(userID)
+	if err != nil {
+		logconfig.Log.Warn("Kart bulunamadı", zap.Uint("user_id", userID), zap.Error(err))
+		_ = flashmessages.SetFlashMessage(c, flashmessages.FlashErrorKey, "Kart bilgileri alınamadı.")
+		return renderer.Render(c, "panel/card/show", "layouts/panel", fiber.Map{
+			"Title": "Kartım",
+		}, http.StatusOK)
+	}
+
+	return renderer.Render(c, "panel/card/show", "layouts/panel", fiber.Map{
+		"Title": "Kartım",
+		"Card":  card,
+	}, http.StatusOK)
+}
+
+func renderPanelCardFormError(title string, req any, message string, c *fiber.Ctx) error {
+	return renderer.Render(c, "panel/card/create", "layouts/panel", fiber.Map{
+		"Title":                    title,
+		renderer.FlashErrorKeyView: message,
+		renderer.FormDataKey:       req,
+	}, http.StatusBadRequest)
 }

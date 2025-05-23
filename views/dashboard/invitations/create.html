@@ -1,0 +1,155 @@
+<!--begin::Container-->
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title mb-0"><strong>{{.Title}}</strong></h3>
+        </div>
+        <div class="card-body">
+          <form method="POST" action="/dashboard/invitations/create" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ .CsrfToken }}">
+
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Kullanıcı <span class="text-danger">*</span></label>
+                <select class="form-select" name="user_id" required>
+                  <option value="">Kullanıcı Seçin</option>
+                  {{range .Users}}
+                    <option value="{{.ID}}" {{if and $.FormData (eq $.FormData.UserID .ID)}}selected{{end}}>{{.Name}} ({{.Email}})</option>
+                  {{end}}
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Kategori <span class="text-danger">*</span></label>
+                <select class="form-select" name="category_id" required>
+                  <option value="">Kategori Seçin</option>
+                  {{range .Categories}}
+                    <option value="{{.ID}}" {{if and $.FormData (eq $.FormData.CategoryID .ID)}}selected{{end}}>{{.Name}}</option>
+                  {{end}}
+                </select>
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Başlık <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" name="title" 
+                       value="{{if .FormData}}{{.FormData.Title}}{{end}}" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Davetiye Anahtarı</label>
+                <input type="text" class="form-control" name="invitation_key" 
+                       value="{{if .FormData}}{{.FormData.InvitationKey}}{{end}}" 
+                       placeholder="Boş bırakılırsa otomatik oluşturulacak">
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Şablon <span class="text-danger">*</span></label>
+                <select class="form-select" name="template" required>
+                  <option value="">Şablon Seçin</option>
+                  <option value="title" {{if and .FormData (eq .FormData.Template "title")}}selected{{end}}>Başlık</option>
+                  <option value="person" {{if and .FormData (eq .FormData.Template "person")}}selected{{end}}>Kişi</option>
+                  <option value="person-family" {{if and .FormData (eq .FormData.Template "person-family")}}selected{{end}}>Kişi ve Ailesi</option>
+                  <option value="wedding" {{if and .FormData (eq .FormData.Template "wedding")}}selected{{end}}>Düğün</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Tip <span class="text-danger">*</span></label>
+                <select class="form-select" name="type" required>
+                  <option value="">Tip Seçin</option>
+                  <option value="basic" {{if and .FormData (eq .FormData.Type "basic")}}selected{{end}}>Temel</option>
+                  <option value="premium" {{if and .FormData (eq .FormData.Type "premium")}}selected{{end}}>Premium</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Tarih <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" name="date" 
+                       value="{{if .FormData}}{{.FormData.Date}}{{end}}" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Saat <span class="text-danger">*</span></label>
+                <input type="time" class="form-control" name="time" 
+                       value="{{if .FormData}}{{.FormData.Time}}{{end}}" required>
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Mekan</label>
+                <input type="text" class="form-control" name="venue" 
+                       value="{{if .FormData}}{{.FormData.Venue}}{{end}}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Adres</label>
+                <input type="text" class="form-control" name="address" 
+                       value="{{if .FormData}}{{.FormData.Address}}{{end}}">
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Konum</label>
+                <input type="text" class="form-control" name="location" 
+                       value="{{if .FormData}}{{.FormData.Location}}{{end}}"
+                       placeholder="Google Maps bağlantısı">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Harici Bağlantı</label>
+                <input type="url" class="form-control" name="link" 
+                       value="{{if .FormData}}{{.FormData.Link}}{{end}}">
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">İletişim Telefonu</label>
+                <input type="tel" class="form-control" name="telephone" 
+                       value="{{if .FormData}}{{.FormData.Telephone}}{{end}}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Kapak Resmi</label>
+                <input type="file" class="form-control" name="image" accept="image/*">
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-12">
+                <label class="form-label">Açıklama</label>
+                <textarea class="form-control" name="description" rows="3">{{if .FormData}}{{.FormData.Description}}{{end}}</textarea>
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-12">
+                <label class="form-label">Not</label>
+                <textarea class="form-control" name="note" rows="2">{{if .FormData}}{{.FormData.Note}}{{end}}</textarea>
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-12">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="is_participant" id="is_participant" value="true" 
+                         {{if or (and $.FormData $.FormData.IsParticipant) true}}checked{{end}}>
+                  <label class="form-check-label" for="is_participant">Katılımcı kaydına izin ver</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-end">
+              <a href="/dashboard/invitations" class="btn btn-secondary me-2">İptal</a>
+              <button type="submit" class="btn btn-primary">Kaydet</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!--end::Container-->
